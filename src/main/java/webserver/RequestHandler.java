@@ -49,7 +49,7 @@ public class RequestHandler implements Runnable{
                 body = Files.readAllBytes(Paths.get(WebappPath + url));
 
             /**
-             * 요구사항 2번 - GET 방식으로 회원가입하기
+             * 요구사항 2,4번 - GET 방식으로 회원가입하기 + 302 status code 적용
              * queryString으로 들어온 정보를 이용해 User 정보를 저장하고 index.html 반환
              */
             if(method.equals("GET") && url.contains("/user/signup")){
@@ -65,21 +65,11 @@ public class RequestHandler implements Runnable{
             }
 
             /**
-             * 요구사항 3번 - POST 방식으로 회원가입하기
+             * 요구사항 3,4번 - POST 방식으로 회원가입하기 + 302 status code 적용
              * request body에 들어있는 queryString 정보를 이용하여 2번과 동일하게 수행
              */
             if(method.equals("POST") && url.contains("/user/signup")){
-                int requestContentLength= 0;
-                while(true) {
-                    final String line = br.readLine();
-                    if (line.equals("")){
-                        break;
-                    }
-                    if(line.startsWith("Content-Length")){
-                        requestContentLength = Integer.parseInt(line.split(": ")[1]);
-                    }
-                }
-                String bodyData = IOUtils.readData(br, requestContentLength);
+                String bodyData = extractBodyFromRequest(br);
                 User user = parseUserFromQueryStringMap(bodyData);
                 memoryUserRepository.addUser(user);
 
@@ -89,11 +79,45 @@ public class RequestHandler implements Runnable{
                 return;
             }
 
+            /**
+             * 요구사항 5번 - 로그인 하기
+             * repository에서 유저 정보를 비교 후 성공 여부 판단
+             * 성공 => Cookie: logined=true를 추가 + index.html 화면으로 redirect
+             * 실패 => login_failed.html로 redirect
+             */
+            if(method.equals("POST")&&url.contains("/user/login")){
+                String bodyData = extractBodyFromRequest(br);
+                User user = parseUserFromQueryStringMap(bodyData);
+                User findUser = memoryUserRepository.findUserById(user.getUserId());
+
+                if(findUser!=null && findUser.getPassword().equals(user.getPassword())){
+                    String location = "/index.html";
+                    String cookie = "logined=true";
+                    response302HeaderWithCookie(dos,location,cookie);
+                    responseBody(dos,body);
+                    return;
+                }
+                String location = "/user/login_failed.html";
+                response302Header(dos,location);
+                responseBody(dos,body);
+                return;
+            }
             response200Header(dos, body.length);
             responseBody(dos, body);
 
         } catch (IOException e) {
             log.log(Level.SEVERE,e.getMessage());
+        }
+    }
+
+    private void response302HeaderWithCookie(DataOutputStream dos, String location, String cookie) {
+        try{
+            dos.writeBytes("HTTP/1.1 302 Found \r\n");
+            dos.writeBytes("Location: " + location+" \r\n");
+            dos.writeBytes("Set-Cookie: "+ cookie);
+            dos.writeBytes("\r\n");
+        } catch (IOException e){
+            log.log(Level.SEVERE, e.getMessage());
         }
     }
 
@@ -136,5 +160,21 @@ public class RequestHandler implements Runnable{
         String email = queryStringMap.get("email");
 
         return new User(userId, password, name, email);
+    }
+
+    private String extractBodyFromRequest(BufferedReader br) throws IOException {
+        int requestContentLength= 0;
+        while(true) {
+            final String line = br.readLine();
+            if (line.equals("")){
+                //헤더와 본문 사이에는 빈 줄이 있다. 따라서 해당 조건문에서는 무한 루프를 종료한다.
+                break;
+            }
+            if(line.startsWith("Content-Length")){
+                //헤더 정보 중 Content-Length를 찾는다.
+                requestContentLength = Integer.parseInt(line.split(": ")[1]);
+            }
+        }
+        return IOUtils.readData(br, requestContentLength);
     }
 }
