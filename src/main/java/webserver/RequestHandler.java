@@ -2,6 +2,7 @@ package webserver;
 
 import db.MemoryUserRepository;
 import http.util.HttpRequestUtils;
+import http.util.IOUtils;
 import model.User;
 
 import java.io.*;
@@ -51,8 +52,35 @@ public class RequestHandler implements Runnable{
              * 요구사항 2번 - GET 방식으로 회원가입하기
              * queryString으로 들어온 정보를 이용해 User 정보를 저장하고 index.html 반환
              */
-            if(method.equals("GET") && url.contains("?")){
-                User user = extractUserFromUrl(url);
+            if(method.equals("GET") && url.contains("/user/signup")){
+                String[] urlSplit = url.split("\\?");
+                String queryString = urlSplit[1];
+                User user = parseUserFromQueryStringMap(queryString);
+                memoryUserRepository.addUser(user);
+
+                String location= "/index.html";
+                response302Header(dos,location);
+                responseBody(dos, body);
+                return;
+            }
+
+            /**
+             * 요구사항 3번 - POST 방식으로 회원가입하기
+             * request body에 들어있는 queryString 정보를 이용하여 2번과 동일하게 수행
+             */
+            if(method.equals("POST") && url.contains("/user/signup")){
+                int requestContentLength= 0;
+                while(true) {
+                    final String line = br.readLine();
+                    if (line.equals("")){
+                        break;
+                    }
+                    if(line.startsWith("Content-Length")){
+                        requestContentLength = Integer.parseInt(line.split(": ")[1]);
+                    }
+                }
+                String bodyData = IOUtils.readData(br, requestContentLength);
+                User user = parseUserFromQueryStringMap(bodyData);
                 memoryUserRepository.addUser(user);
 
                 String location= "/index.html";
@@ -99,10 +127,8 @@ public class RequestHandler implements Runnable{
         }
     }
 
-    private User extractUserFromUrl(String url) {
-        String[] urlSplit = url.split("\\?");
-        String queryString = urlSplit[1];
-        Map<String, String> queryStringMap = HttpRequestUtils.parseQueryParameter(queryString);
+    private User parseUserFromQueryStringMap(String bodyData) {
+        Map<String, String> queryStringMap = HttpRequestUtils.parseQueryParameter(bodyData);
 
         String userId = queryStringMap.get("userId");
         String password = queryStringMap.get("password");
