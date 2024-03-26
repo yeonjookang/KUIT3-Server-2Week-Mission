@@ -120,11 +120,34 @@ public class RequestHandler implements Runnable{
                 return;
             }
 
+            /**
+             * 요구사항 7번 - CSS 출력
+             * 현재 styles.css가 적용되어있지 않다.
+             * => url이 css 확장자로 끝난다면 Content-type을 text/css로 설정하고 반환
+             */
+            if(url.endsWith(".css")){
+                body = Files.readAllBytes(Paths.get(WebappPath + url));
+                response200CssHeader(dos,body.length);
+                responseBody(dos,body);
+                return;
+            }
+
             response200Header(dos, body.length);
             responseBody(dos, body);
 
         } catch (IOException e) {
             log.log(Level.SEVERE,e.getMessage());
+        }
+    }
+
+    private void response200CssHeader(DataOutputStream dos, int lengthOfBodyContent) {
+        try {
+            dos.writeBytes("HTTP/1.1 200 OK \r\n");
+            dos.writeBytes("Content-Type: text/css;charset=utf-8\r\n");
+            dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
+            dos.writeBytes("\r\n");
+        } catch (IOException e) {
+            log.log(Level.SEVERE, e.getMessage());
         }
     }
 
