@@ -9,7 +9,6 @@ public class HttpRequestUtils {
     public static Map<String, String> parseQueryParameter(String queryString) {
         try {
             String[] queryStrings = queryString.split("&");
-
             return Arrays.stream(queryStrings)
                     .map(q -> q.split("="))
                     .collect(Collectors.toMap(queries -> queries[0], queries -> queries[1]));
