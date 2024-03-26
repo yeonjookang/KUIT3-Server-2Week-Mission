@@ -102,6 +102,24 @@ public class RequestHandler implements Runnable{
                 responseBody(dos,body);
                 return;
             }
+
+            /**
+             * 요구사항 6번 - 사용자 목록 출력
+             * 요청 Cookie 헤더를 통해 로그인된 사용자인지 확인하자.
+             * 로그인한 사용자 - userlist 버튼 클릭 시 user list 출력
+             * 로그인 안된 사용자 - login.html 화면으로 redirect
+             */
+            if(method.equals("GET")&&url.equals("/user/userList")){
+                String cookie=parseCookieFromRequest(br);
+                String location;
+                if (cookie.isEmpty())
+                    location = "/user/login.html";
+                else location = "/user/list.html";
+                response302Header(dos,location);
+                responseBody(dos,body);
+                return;
+            }
+
             response200Header(dos, body.length);
             responseBody(dos, body);
 
@@ -176,5 +194,21 @@ public class RequestHandler implements Runnable{
             }
         }
         return IOUtils.readData(br, requestContentLength);
+    }
+
+    private String parseCookieFromRequest(BufferedReader br) throws IOException {
+        String cookie = "";
+        while(true) {
+            final String line = br.readLine();
+            if (line.equals("")){
+                //헤더와 본문 사이에는 빈 줄이 있다. 따라서 해당 조건문에서는 무한 루프를 종료한다.
+                break;
+            }
+            if(line.startsWith("Cookie")){
+                //헤더 정보 중 Cookie를 찾는다.
+                cookie = line.split(": ")[1];
+            }
+        }
+        return cookie;
     }
 }
