@@ -27,7 +27,7 @@ public class HttpResponse {
     }
 
     private void setBody(String path) throws IOException {
-        byte[] body = Files.readAllBytes(Paths.get(FilePath.WebappPath + path));
+        byte[] body = Files.readAllBytes(Paths.get(FilePath.WebappPath.getPath() + path));
         putHeader("Content-Length",String.valueOf(body.length));
         this.body=body;
     }
