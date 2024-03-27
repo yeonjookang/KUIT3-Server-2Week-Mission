@@ -1,9 +1,8 @@
 package webserver;
 
 import db.MemoryUserRepository;
-import http.enumclass.FilePath;
-import http.enumclass.HttpMethod;
-import http.enumclass.Url;
+import http.constatnt.HttpMethod;
+import http.request.HttpRequest;
 import http.util.HttpRequestUtils;
 import http.util.IOUtils;
 import model.User;
@@ -17,8 +16,8 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static http.enumclass.FilePath.*;
-import static http.enumclass.Url.*;
+import static http.constatnt.FilePath.*;
+import static http.constatnt.Url.*;
 
 public class RequestHandler implements Runnable{
     Socket connection;
@@ -37,22 +36,16 @@ public class RequestHandler implements Runnable{
             BufferedReader br = new BufferedReader(new InputStreamReader(in));
             DataOutputStream dos = new DataOutputStream(out);
 
-            //요청 프로토콜의 startLine 분석
-            String startLine = br.readLine();
-            String[] startLines = startLine.split(" ");
-            String method = startLines[0];
-            String url = startLines[1];
-            byte[] body= "Hello World".getBytes();;
-            System.out.println(url);
+            HttpRequest httpRequest = HttpRequest.from(br);
+            byte[] body= "Hello World".getBytes();
 
             /**
              * 요구사항 1번 - index.html 반환하기
              * localhost/ 혹은 localhost/index.html으로 요청이 들어오면 webapp/index.html 반환
              */
-            if(url.equals(HOME.getUrl()))
-                url= HomePagePath.getPath();
-            if(method.equals(HttpMethod.GET) && url.endsWith(".html")) {
-                Path path = Paths.get(WebappPath.getPath() + url);
+            if(httpRequest.getMethod().equals(HttpMethod.GET)
+                    && httpRequest.getUrl().endsWith(".html")) {
+                Path path = Paths.get(WebappPath.getPath() + httpRequest.getUrl());
                 body = Files.readAllBytes(path);
             }
 
@@ -60,10 +53,9 @@ public class RequestHandler implements Runnable{
              * 요구사항 2,4번 - GET 방식으로 회원가입하기 + 302 status code 적용
              * queryString으로 들어온 정보를 이용해 User 정보를 저장하고 index.html 반환
              */
-            if(method.equals(HttpMethod.GET) && url.contains(SIGNUP.getUrl())){
-                String[] urlSplit = url.split("\\?");
-                String queryString = urlSplit[1];
-                User user = parseUserFromQueryStringMap(queryString);
+            if(httpRequest.getMethod().equals(HttpMethod.GET)
+                    && httpRequest.getUrl().equals(SIGNUP.getUrl())){
+                User user = parseUserFromQueryString(httpRequest);
                 memoryUserRepository.addUser(user);
 
                 String location=HomePagePath.getPath();
@@ -76,9 +68,9 @@ public class RequestHandler implements Runnable{
              * 요구사항 3,4번 - POST 방식으로 회원가입하기 + 302 status code 적용
              * request body에 들어있는 queryString 정보를 이용하여 2번과 동일하게 수행
              */
-            if(method.equals(HttpMethod.POST) && url.contains(SIGNUP.getUrl())){
-                String bodyData = extractBodyFromRequest(br);
-                User user = parseUserFromQueryStringMap(bodyData);
+            if(httpRequest.getMethod().equals(HttpMethod.POST)
+                    && httpRequest.getUrl().equals(SIGNUP.getUrl())){
+                User user = parseUserFromBody(httpRequest);
                 memoryUserRepository.addUser(user);
 
                 String location= HomePagePath.getPath();
@@ -93,9 +85,9 @@ public class RequestHandler implements Runnable{
              * 성공 => Cookie: logined=true를 추가 + index.html 화면으로 redirect
              * 실패 => login_failed.html로 redirect
              */
-            if(method.equals(HttpMethod.POST)&&url.contains(LOGIN.getUrl())){
-                String bodyData = extractBodyFromRequest(br);
-                User user = parseUserFromQueryStringMap(bodyData);
+            if(httpRequest.getMethod().equals(HttpMethod.POST)
+                    &&httpRequest.getUrl().equals(LOGIN.getUrl())){
+                User user = parseUserFromBody(httpRequest);
                 User findUser = memoryUserRepository.findUserById(user.getUserId());
 
                 if(findUser!=null && findUser.getPassword().equals(user.getPassword())){
@@ -117,8 +109,9 @@ public class RequestHandler implements Runnable{
              * 로그인한 사용자 - userlist 버튼 클릭 시 user list 출력
              * 로그인 안된 사용자 - login.html 화면으로 redirect
              */
-            if(method.equals(HttpMethod.GET)&&url.equals(USERLIST.getUrl())){
-                String cookie=parseCookieFromRequest(br);
+            if(httpRequest.getMethod().equals(HttpMethod.GET)
+                    &&httpRequest.getUrl().equals(USERLIST.getUrl())){
+                String cookie= httpRequest.getHeader("Cookie");
                 String location;
                 if (cookie.isEmpty())
                     location = LoginPath.getPath();
@@ -133,8 +126,8 @@ public class RequestHandler implements Runnable{
              * 현재 styles.css가 적용되어있지 않다.
              * => url이 css 확장자로 끝난다면 Content-type을 text/css로 설정하고 반환
              */
-            if(url.endsWith(".css")){
-                body = Files.readAllBytes(Paths.get(WebappPath.getPath() + url));
+            if(httpRequest.getUrl().endsWith(".css")){
+                body = Files.readAllBytes(Paths.get(WebappPath.getPath() + httpRequest.getUrl()));
                 response200CssHeader(dos,body.length);
                 responseBody(dos,body);
                 return;
@@ -200,46 +193,22 @@ public class RequestHandler implements Runnable{
         }
     }
 
-    private User parseUserFromQueryStringMap(String bodyData) {
-        Map<String, String> queryStringMap = HttpRequestUtils.parseQueryParameter(bodyData);
-
-        String userId = queryStringMap.get("userId");
-        String password = queryStringMap.get("password");
-        String name = queryStringMap.get("name");
-        String email = queryStringMap.get("email");
+    private User parseUserFromQueryString(HttpRequest httpRequest) {
+        String userId = httpRequest.getQueryParameter("userId");
+        String password = httpRequest.getQueryParameter("password");
+        String name = httpRequest.getQueryParameter("name");
+        String email = httpRequest.getQueryParameter("email");
 
         return new User(userId, password, name, email);
     }
 
-    private String extractBodyFromRequest(BufferedReader br) throws IOException {
-        int requestContentLength= 0;
-        while(true) {
-            final String line = br.readLine();
-            if (line.equals("")){
-                //헤더와 본문 사이에는 빈 줄이 있다. 따라서 해당 조건문에서는 무한 루프를 종료한다.
-                break;
-            }
-            if(line.startsWith("Content-Length")){
-                //헤더 정보 중 Content-Length를 찾는다.
-                requestContentLength = Integer.parseInt(line.split(": ")[1]);
-            }
-        }
-        return IOUtils.readData(br, requestContentLength);
-    }
+    private User parseUserFromBody(HttpRequest httpRequest){
+        Map<String, String> queryParametersFromBody = httpRequest.getQueryParametersFromBody();
+        String userId = queryParametersFromBody.get("userId");
+        String password = queryParametersFromBody.get("password");
+        String name = queryParametersFromBody.get("name");
+        String email = queryParametersFromBody.get("email");
 
-    private String parseCookieFromRequest(BufferedReader br) throws IOException {
-        String cookie = "";
-        while(true) {
-            final String line = br.readLine();
-            if (line.equals("")){
-                //헤더와 본문 사이에는 빈 줄이 있다. 따라서 해당 조건문에서는 무한 루프를 종료한다.
-                break;
-            }
-            if(line.startsWith("Cookie")){
-                //헤더 정보 중 Cookie를 찾는다.
-                cookie = line.split(": ")[1];
-            }
-        }
-        return cookie;
+        return new User(userId, password, name, email);
     }
 }
