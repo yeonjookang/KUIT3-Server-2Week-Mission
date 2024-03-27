@@ -1,17 +1,12 @@
 package webserver;
 
 import db.MemoryUserRepository;
-import http.constatnt.HttpMethod;
 import http.request.HttpRequest;
-import http.util.HttpRequestUtils;
-import http.util.IOUtils;
+import http.response.HttpResponse;
 import model.User;
 
 import java.io.*;
 import java.net.Socket;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -39,7 +34,7 @@ public class RequestHandler implements Runnable{
             DataOutputStream dos = new DataOutputStream(out);
 
             HttpRequest httpRequest = HttpRequest.from(br);
-            byte[] body= "Hello World".getBytes();
+            HttpResponse httpResponse = new HttpResponse(dos);
 
             /**
              * 요구사항 1번 - index.html 반환하기
@@ -47,8 +42,7 @@ public class RequestHandler implements Runnable{
              */
             if(httpRequest.getMethod().equals(GET.getMethod())
                     && httpRequest.getUrl().endsWith(".html")) {
-                Path path = Paths.get(WebappPath.getPath() + httpRequest.getUrl());
-                body = Files.readAllBytes(path);
+                httpResponse.forward(httpRequest.getUrl());
             }
 
             /**
@@ -60,10 +54,7 @@ public class RequestHandler implements Runnable{
                 User user = parseUserFromQueryString(httpRequest);
                 memoryUserRepository.addUser(user);
 
-                String location=HomePagePath.getPath();
-                response302Header(dos,location);
-                responseBody(dos, body);
-                return;
+                httpResponse.redirect(HomePagePath.getPath());
             }
 
             /**
@@ -74,10 +65,8 @@ public class RequestHandler implements Runnable{
                     && httpRequest.getUrl().equals(SIGNUP.getUrl())){
                 User user = parseUserFromBody(httpRequest);
                 memoryUserRepository.addUser(user);
-                String location= HomePagePath.getPath();
-                response302Header(dos,location);
-                responseBody(dos, body);
-                return;
+
+                httpResponse.redirect(HomePagePath.getPath());
             }
 
             /**
@@ -92,16 +81,12 @@ public class RequestHandler implements Runnable{
                 User findUser = memoryUserRepository.findUserById(user.getUserId());
 
                 if(findUser!=null && findUser.getPassword().equals(user.getPassword())){
-                    String location = HomePagePath.getPath();
                     String cookie = "logined=true";
-                    response302HeaderWithCookie(dos,location,cookie);
-                    responseBody(dos,body);
-                    return;
+                    httpResponse.putHeader("Cookie",cookie);
+
+                    httpResponse.redirect(HomePagePath.getPath());
                 }
-                String location = LoginFailPath.getPath();
-                response302Header(dos,location);
-                responseBody(dos,body);
-                return;
+                httpResponse.redirect(LoginFailPath.getPath());
             }
 
             /**
@@ -117,8 +102,8 @@ public class RequestHandler implements Runnable{
                 if (cookie.isEmpty())
                     location = LoginPath.getPath();
                 else location = UserListPath.getPath();
-                response302Header(dos,location);
-                responseBody(dos,body);
+
+                httpResponse.redirect(location);
                 return;
             }
 
@@ -128,69 +113,11 @@ public class RequestHandler implements Runnable{
              * => url이 css 확장자로 끝난다면 Content-type을 text/css로 설정하고 반환
              */
             if(httpRequest.getUrl().endsWith(".css")){
-                body = Files.readAllBytes(Paths.get(WebappPath.getPath() + httpRequest.getUrl()));
-                response200CssHeader(dos,body.length);
-                responseBody(dos,body);
-                return;
+                httpResponse.redirect(httpRequest.getUrl());
             }
-
-            response200Header(dos, body.length);
-            responseBody(dos, body);
 
         } catch (IOException e) {
             log.log(Level.SEVERE,e.getMessage());
-        }
-    }
-
-    private void response200CssHeader(DataOutputStream dos, int lengthOfBodyContent) {
-        try {
-            dos.writeBytes("HTTP/1.1 200 OK \r\n");
-            dos.writeBytes("Content-Type: text/css;charset=utf-8\r\n");
-            dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
-            dos.writeBytes("\r\n");
-        } catch (IOException e) {
-            log.log(Level.SEVERE, e.getMessage());
-        }
-    }
-
-    private void response302HeaderWithCookie(DataOutputStream dos, String location, String cookie) {
-        try{
-            dos.writeBytes("HTTP/1.1 302 Found \r\n");
-            dos.writeBytes("Location: " + location+" \r\n");
-            dos.writeBytes("Set-Cookie: "+ cookie);
-            dos.writeBytes("\r\n");
-        } catch (IOException e){
-            log.log(Level.SEVERE, e.getMessage());
-        }
-    }
-
-    private void response302Header(DataOutputStream dos, String location) {
-        try{
-            dos.writeBytes("HTTP/1.1 302 Found \r\n");
-            dos.writeBytes("Location: " + location);
-            dos.writeBytes("\r\n");
-        } catch (IOException e){
-            log.log(Level.SEVERE, e.getMessage());
-        }
-    }
-
-    private void response200Header(DataOutputStream dos, int lengthOfBodyContent) {
-        try {
-            dos.writeBytes("HTTP/1.1 200 OK \r\n");
-            dos.writeBytes("Content-Type: text/html;charset=utf-8\r\n");
-            dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
-            dos.writeBytes("\r\n");
-        } catch (IOException e) {
-            log.log(Level.SEVERE, e.getMessage());
-        }
-    }
-
-    private void responseBody(DataOutputStream dos, byte[] body) {
-        try {
-            dos.write(body, 0, body.length);
-            dos.flush();
-        } catch (IOException e) {
-            log.log(Level.SEVERE, e.getMessage());
         }
     }
 
