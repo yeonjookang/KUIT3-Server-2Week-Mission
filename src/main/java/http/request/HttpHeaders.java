@@ -43,4 +43,16 @@ public class HttpHeaders {
     public Set<String> getHeaderKeys(){
         return headers.keySet();
     }
+
+    public void put(String key, String value) {
+        headers.put(key,value);
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        headers.forEach((key,value) -> sb.append(key).append(": ").append(value).append("\r\n"));
+
+        return sb.append("\r\n").toString();
+    }
 }
