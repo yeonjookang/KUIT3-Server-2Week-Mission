@@ -32,7 +32,7 @@ public class HttpRequestStartLine {
 
         Map<String,String> parseQuery = new HashMap<>();
         if(parsePaths.length>1)
-            parseQuery = HttpRequestUtils.parseQueryParameter(parsePaths[1])''
+            parseQuery = HttpRequestUtils.parseQueryParameter(parsePaths[1]);
 
         String version = startLines[2];
 
