@@ -1,7 +1,9 @@
 package webserver;
 
 import db.MemoryUserRepository;
+import http.enumclass.FilePath;
 import http.enumclass.HttpMethod;
+import http.enumclass.Url;
 import http.util.HttpRequestUtils;
 import http.util.IOUtils;
 import model.User;
@@ -9,16 +11,19 @@ import model.User;
 import java.io.*;
 import java.net.Socket;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import static http.enumclass.FilePath.*;
+import static http.enumclass.Url.*;
+
 public class RequestHandler implements Runnable{
     Socket connection;
     private final MemoryUserRepository memoryUserRepository = MemoryUserRepository.getInstance();
     private static final Logger log = Logger.getLogger(RequestHandler.class.getName());
-    private static final String WebappPath = "C:/Users/rkddu/Documents/4학년 1학기/KUIT 서버/KUIT3_Backend-Java-Tomcat/webapp";
 
     public RequestHandler(Socket connection) {
 
@@ -44,22 +49,24 @@ public class RequestHandler implements Runnable{
              * 요구사항 1번 - index.html 반환하기
              * localhost/ 혹은 localhost/index.html으로 요청이 들어오면 webapp/index.html 반환
              */
-            if(url.equals("/"))
-                url="/index.html";
-            if(method.equals(HttpMethod.GET) && url.endsWith(".html"))
-                body = Files.readAllBytes(Paths.get(WebappPath + url));
+            if(url.equals(HOME.getUrl()))
+                url= HomePagePath.getPath();
+            if(method.equals(HttpMethod.GET) && url.endsWith(".html")) {
+                Path path = Paths.get(WebappPath.getPath() + url);
+                body = Files.readAllBytes(path);
+            }
 
             /**
              * 요구사항 2,4번 - GET 방식으로 회원가입하기 + 302 status code 적용
              * queryString으로 들어온 정보를 이용해 User 정보를 저장하고 index.html 반환
              */
-            if(method.equals(HttpMethod.GET) && url.contains("/user/signup")){
+            if(method.equals(HttpMethod.GET) && url.contains(SIGNUP.getUrl())){
                 String[] urlSplit = url.split("\\?");
                 String queryString = urlSplit[1];
                 User user = parseUserFromQueryStringMap(queryString);
                 memoryUserRepository.addUser(user);
 
-                String location= "/index.html";
+                String location=HomePagePath.getPath();
                 response302Header(dos,location);
                 responseBody(dos, body);
                 return;
@@ -69,12 +76,12 @@ public class RequestHandler implements Runnable{
              * 요구사항 3,4번 - POST 방식으로 회원가입하기 + 302 status code 적용
              * request body에 들어있는 queryString 정보를 이용하여 2번과 동일하게 수행
              */
-            if(method.equals(HttpMethod.POST) && url.contains("/user/signup")){
+            if(method.equals(HttpMethod.POST) && url.contains(SIGNUP.getUrl())){
                 String bodyData = extractBodyFromRequest(br);
                 User user = parseUserFromQueryStringMap(bodyData);
                 memoryUserRepository.addUser(user);
 
-                String location= "/index.html";
+                String location= HomePagePath.getPath();
                 response302Header(dos,location);
                 responseBody(dos, body);
                 return;
@@ -86,19 +93,19 @@ public class RequestHandler implements Runnable{
              * 성공 => Cookie: logined=true를 추가 + index.html 화면으로 redirect
              * 실패 => login_failed.html로 redirect
              */
-            if(method.equals(HttpMethod.POST)&&url.contains("/user/login")){
+            if(method.equals(HttpMethod.POST)&&url.contains(LOGIN.getUrl())){
                 String bodyData = extractBodyFromRequest(br);
                 User user = parseUserFromQueryStringMap(bodyData);
                 User findUser = memoryUserRepository.findUserById(user.getUserId());
 
                 if(findUser!=null && findUser.getPassword().equals(user.getPassword())){
-                    String location = "/index.html";
+                    String location = HomePagePath.getPath();
                     String cookie = "logined=true";
                     response302HeaderWithCookie(dos,location,cookie);
                     responseBody(dos,body);
                     return;
                 }
-                String location = "/user/login_failed.html";
+                String location = LoginFailPath.getPath();
                 response302Header(dos,location);
                 responseBody(dos,body);
                 return;
@@ -110,12 +117,12 @@ public class RequestHandler implements Runnable{
              * 로그인한 사용자 - userlist 버튼 클릭 시 user list 출력
              * 로그인 안된 사용자 - login.html 화면으로 redirect
              */
-            if(method.equals(HttpMethod.GET)&&url.equals("/user/userList")){
+            if(method.equals(HttpMethod.GET)&&url.equals(USERLIST.getUrl())){
                 String cookie=parseCookieFromRequest(br);
                 String location;
                 if (cookie.isEmpty())
-                    location = "/user/login.html";
-                else location = "/user/list.html";
+                    location = LoginPath.getPath();
+                else location = UserListPath.getPath();
                 response302Header(dos,location);
                 responseBody(dos,body);
                 return;
@@ -127,7 +134,7 @@ public class RequestHandler implements Runnable{
              * => url이 css 확장자로 끝난다면 Content-type을 text/css로 설정하고 반환
              */
             if(url.endsWith(".css")){
-                body = Files.readAllBytes(Paths.get(WebappPath + url));
+                body = Files.readAllBytes(Paths.get(WebappPath.getPath() + url));
                 response200CssHeader(dos,body.length);
                 responseBody(dos,body);
                 return;
