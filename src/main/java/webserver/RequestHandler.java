@@ -17,6 +17,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static http.constatnt.FilePath.*;
+import static http.constatnt.HttpMethod.GET;
+import static http.constatnt.HttpMethod.POST;
 import static http.constatnt.Url.*;
 
 public class RequestHandler implements Runnable{
@@ -43,7 +45,7 @@ public class RequestHandler implements Runnable{
              * 요구사항 1번 - index.html 반환하기
              * localhost/ 혹은 localhost/index.html으로 요청이 들어오면 webapp/index.html 반환
              */
-            if(httpRequest.getMethod().equals(HttpMethod.GET)
+            if(httpRequest.getMethod().equals(GET.getMethod())
                     && httpRequest.getUrl().endsWith(".html")) {
                 Path path = Paths.get(WebappPath.getPath() + httpRequest.getUrl());
                 body = Files.readAllBytes(path);
@@ -53,7 +55,7 @@ public class RequestHandler implements Runnable{
              * 요구사항 2,4번 - GET 방식으로 회원가입하기 + 302 status code 적용
              * queryString으로 들어온 정보를 이용해 User 정보를 저장하고 index.html 반환
              */
-            if(httpRequest.getMethod().equals(HttpMethod.GET)
+            if(httpRequest.getMethod().equals(GET.getMethod())
                     && httpRequest.getUrl().equals(SIGNUP.getUrl())){
                 User user = parseUserFromQueryString(httpRequest);
                 memoryUserRepository.addUser(user);
@@ -68,11 +70,10 @@ public class RequestHandler implements Runnable{
              * 요구사항 3,4번 - POST 방식으로 회원가입하기 + 302 status code 적용
              * request body에 들어있는 queryString 정보를 이용하여 2번과 동일하게 수행
              */
-            if(httpRequest.getMethod().equals(HttpMethod.POST)
+            if(httpRequest.getMethod().equals(POST.getMethod())
                     && httpRequest.getUrl().equals(SIGNUP.getUrl())){
                 User user = parseUserFromBody(httpRequest);
                 memoryUserRepository.addUser(user);
-
                 String location= HomePagePath.getPath();
                 response302Header(dos,location);
                 responseBody(dos, body);
@@ -85,7 +86,7 @@ public class RequestHandler implements Runnable{
              * 성공 => Cookie: logined=true를 추가 + index.html 화면으로 redirect
              * 실패 => login_failed.html로 redirect
              */
-            if(httpRequest.getMethod().equals(HttpMethod.POST)
+            if(httpRequest.getMethod().equals(POST.getMethod())
                     &&httpRequest.getUrl().equals(LOGIN.getUrl())){
                 User user = parseUserFromBody(httpRequest);
                 User findUser = memoryUserRepository.findUserById(user.getUserId());
@@ -109,7 +110,7 @@ public class RequestHandler implements Runnable{
              * 로그인한 사용자 - userlist 버튼 클릭 시 user list 출력
              * 로그인 안된 사용자 - login.html 화면으로 redirect
              */
-            if(httpRequest.getMethod().equals(HttpMethod.GET)
+            if(httpRequest.getMethod().equals(GET.getMethod())
                     &&httpRequest.getUrl().equals(USERLIST.getUrl())){
                 String cookie= httpRequest.getHeader("Cookie");
                 String location;

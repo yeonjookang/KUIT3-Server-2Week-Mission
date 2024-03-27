@@ -34,6 +34,8 @@ public class HttpRequest {
     }
 
     private static String readBody(BufferedReader br, HttpHeaders httpHeaders) throws IOException {
+        if(!httpHeaders.getHeaderKeys().contains("Content-Length"))
+            return "";
         int contentLength = Integer.parseInt(httpHeaders.getHeader("Content-Length"));
         return IOUtils.readData(br,contentLength);
     }

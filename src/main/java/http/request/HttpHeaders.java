@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 public class HttpHeaders {
     private Map<String,String> headers;
@@ -34,6 +35,12 @@ public class HttpHeaders {
     }
 
     public String getHeader(String headerKey){
-        return headers.get(headerKey);
+        if(headers.keySet().contains(headerKey))
+            return headers.get(headerKey);
+        return "";
+    }
+
+    public Set<String> getHeaderKeys(){
+        return headers.keySet();
     }
 }
