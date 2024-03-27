@@ -1,6 +1,7 @@
 package webserver;
 
 import db.MemoryUserRepository;
+import http.enumclass.HttpMethod;
 import http.util.HttpRequestUtils;
 import http.util.IOUtils;
 import model.User;
@@ -45,14 +46,14 @@ public class RequestHandler implements Runnable{
              */
             if(url.equals("/"))
                 url="/index.html";
-            if(method.equals("GET") && url.endsWith(".html"))
+            if(method.equals(HttpMethod.GET) && url.endsWith(".html"))
                 body = Files.readAllBytes(Paths.get(WebappPath + url));
 
             /**
              * 요구사항 2,4번 - GET 방식으로 회원가입하기 + 302 status code 적용
              * queryString으로 들어온 정보를 이용해 User 정보를 저장하고 index.html 반환
              */
-            if(method.equals("GET") && url.contains("/user/signup")){
+            if(method.equals(HttpMethod.GET) && url.contains("/user/signup")){
                 String[] urlSplit = url.split("\\?");
                 String queryString = urlSplit[1];
                 User user = parseUserFromQueryStringMap(queryString);
@@ -68,7 +69,7 @@ public class RequestHandler implements Runnable{
              * 요구사항 3,4번 - POST 방식으로 회원가입하기 + 302 status code 적용
              * request body에 들어있는 queryString 정보를 이용하여 2번과 동일하게 수행
              */
-            if(method.equals("POST") && url.contains("/user/signup")){
+            if(method.equals(HttpMethod.POST) && url.contains("/user/signup")){
                 String bodyData = extractBodyFromRequest(br);
                 User user = parseUserFromQueryStringMap(bodyData);
                 memoryUserRepository.addUser(user);
@@ -85,7 +86,7 @@ public class RequestHandler implements Runnable{
              * 성공 => Cookie: logined=true를 추가 + index.html 화면으로 redirect
              * 실패 => login_failed.html로 redirect
              */
-            if(method.equals("POST")&&url.contains("/user/login")){
+            if(method.equals(HttpMethod.POST)&&url.contains("/user/login")){
                 String bodyData = extractBodyFromRequest(br);
                 User user = parseUserFromQueryStringMap(bodyData);
                 User findUser = memoryUserRepository.findUserById(user.getUserId());
@@ -109,7 +110,7 @@ public class RequestHandler implements Runnable{
              * 로그인한 사용자 - userlist 버튼 클릭 시 user list 출력
              * 로그인 안된 사용자 - login.html 화면으로 redirect
              */
-            if(method.equals("GET")&&url.equals("/user/userList")){
+            if(method.equals(HttpMethod.GET)&&url.equals("/user/userList")){
                 String cookie=parseCookieFromRequest(br);
                 String location;
                 if (cookie.isEmpty())
