@@ -1,4 +1,4 @@
-package http.enumclass;
+package http.constatnt;
 
 public enum Url {
     HOME("/"),

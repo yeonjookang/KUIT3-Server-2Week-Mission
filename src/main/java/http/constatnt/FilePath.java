@@ -1,4 +1,4 @@
-package http.enumclass;
+package http.constatnt;
 
 public enum FilePath {
     WebappPath("C:/Users/rkddu/Documents/4학년 1학기/KUIT 서버/KUIT3_Backend-Java-Tomcat/webapp"),
