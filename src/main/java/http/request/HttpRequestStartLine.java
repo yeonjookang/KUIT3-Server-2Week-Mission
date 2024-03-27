@@ -21,7 +21,7 @@ public class HttpRequestStartLine {
         this.version = version;
     }
 
-    private HttpRequestStartLine from(String startLine){
+    public static HttpRequestStartLine from(String startLine){
         String[] startLines = startLine.split(DISCRIMINATOR);
         validationStartLineLength(startLines);
 
@@ -39,11 +39,11 @@ public class HttpRequestStartLine {
         return new HttpRequestStartLine(method,path,parseQuery,version);
     }
 
-    private String[] parsePath(String url) {
+    private static String[] parsePath(String url) {
         return url.split(PARAM_DISCRIMINATOR);
     }
 
-    private void validationStartLineLength(String[] startLines) {
+    private static void validationStartLineLength(String[] startLines) {
         if(startLines.length<START_LINE_MIN_LENGTH){
             throw new IllegalArgumentException("요청 StartLine 정보가 잘못되었습니다.");
         }
