@@ -22,6 +22,23 @@ public class HttpResponse {
         httpHeaders.put("Content-Type","text/html;charset-utf-8");
     }
 
+    public void forward(String path) throws IOException {
+        setBody(path);
+        if (isHtml(path)){
+            write();
+            return;
+        }
+        putHeader("Content-Type","text/css");
+        write();
+    }
+
+    public void redirect(String path) throws IOException {
+        startLine.setHttpStatus("Redirect");
+        startLine.setStatusCode("302");
+        putHeader("Location", path);
+        write();
+    }
+
     public void putHeader(String key, String value){
         httpHeaders.put(key,value);
     }
@@ -38,23 +55,6 @@ public class HttpResponse {
         os.write(body);
         os.flush();
         os.close();
-    }
-
-    public void forward(String path) throws IOException {
-        setBody(path);
-        if (isHtml(path)){
-            write();
-            return;
-        }
-        putHeader("Content-Type","text/css");
-        write();
-    }
-
-    public void redirect(String path) throws IOException {
-        startLine.setHttpStatus("Redirect");
-        startLine.setStatusCode("302");
-        putHeader("Location", path);
-        write();
     }
 
     private boolean isHtml(String path) {
